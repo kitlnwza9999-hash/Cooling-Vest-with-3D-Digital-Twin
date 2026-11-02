@@ -9,8 +9,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Smart Cooling Vest with 3D Digital Twin | เสื้อกั๊กปรับอากาศอัจฉริยะ ESP32</title>
   
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/style.css">
+  <!-- Stylesheets (Versioned cache busting) -->
+  <link rel="stylesheet" href="css/style.css?v=3.0">
   
   <!-- Offline-ready 3D Libraries -->
   <script src="assets/three.min.js"></script>
@@ -31,24 +31,28 @@
       <!-- Main Navigation Tabs -->
       <nav class="nav-tabs">
         <button class="tab-btn active" data-target="tab-3d">
-          <span>🧊</span> 3D Digital Twin & สภาพแวดล้อม
+          <span>🧊</span>
+          <span class="tab-label-full">3D Digital Twin & สภาพแวดล้อม</span>
+          <span class="tab-label-short">3D Twin</span>
         </button>
         <button class="tab-btn" data-target="tab-bom">
-          <span>📊</span> สเปกอุปกรณ์ & รายการ BOM
+          <span>📊</span>
+          <span class="tab-label-full">สเปกอุปกรณ์ & รายการ BOM</span>
+          <span class="tab-label-short">BOM</span>
         </button>
       </nav>
 
       <!-- System Status & Controls -->
       <div class="header-status">
-        <div class="status-chip">
+        <div class="status-chip chip-esp32">
           <div class="status-dot"></div>
           <span>ESP32: ONLINE (240MHz)</span>
         </div>
-        <div class="status-chip">
-          <span style="color: var(--accent-cyan);">🔋 11.8V (86%)</span>
+        <div class="status-chip chip-batt">
+          <span style="color: var(--accent-cyan);">🔋 11.8V</span>
         </div>
         <button id="btn-power-toggle" class="action-btn" style="background: rgba(255, 51, 102, 0.2); border-color: var(--accent-danger);">
-          ⚡ ปิดระบบ
+          <span>⚡ ปิดระบบ</span>
         </button>
       </div>
     </header>
@@ -949,9 +953,9 @@ void loop() {
     </main>
   </div>
 
-  <!-- Core App Scripts -->
-  <script src="js/scene.js"></script>
-  <script src="js/wiring.js"></script>
-  <script src="js/app.js"></script>
+  <!-- Core App Scripts (Versioned cache busting) -->
+  <script src="js/scene.js?v=3.0"></script>
+  <script src="js/wiring.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
 </body>
 </html>
