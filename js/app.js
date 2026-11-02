@@ -198,7 +198,7 @@ class SmartVestApp {
    * Preset Test Environments
    */
   bindPresetButtons() {
-    const presets = document.querySelectorAll('.preset-btn');
+    const presets = document.querySelectorAll('.preset-grid .preset-btn');
     presets.forEach(btn => {
       btn.addEventListener('click', () => {
         presets.forEach(p => p.classList.remove('active'));
@@ -302,7 +302,7 @@ class SmartVestApp {
     if (waistBtn) {
       waistBtn.addEventListener('click', () => {
         this.waistFanActive = !this.waistFanActive;
-        waistBtn.innerHTML = `<strong style="font-size: 11px;">🌪️ พัดลมล่าง: ${this.waistFanActive ? 'เปิด' : 'ปิด'}</strong>`;
+        waistBtn.innerHTML = `<span>🌪️ พัดลมล่าง: ${this.waistFanActive ? 'เปิด' : 'ปิด'}</span>`;
         waistBtn.classList.toggle('active', this.waistFanActive);
         this.recomputeAll();
         this.playBeep(this.waistFanActive ? 1000 : 500, 0.05);
@@ -314,7 +314,7 @@ class SmartVestApp {
     if (shoulderBtn) {
       shoulderBtn.addEventListener('click', () => {
         this.shoulderFanActive = !this.shoulderFanActive;
-        shoulderBtn.innerHTML = `<strong style="font-size: 11px;">🌬️ พัดลมบ่า: ${this.shoulderFanActive ? 'เปิด' : 'ปิด'}</strong>`;
+        shoulderBtn.innerHTML = `<span>🌬️ พัดลมบ่า: ${this.shoulderFanActive ? 'เปิด' : 'ปิด'}</span>`;
         shoulderBtn.classList.toggle('active', this.shoulderFanActive);
         this.recomputeAll();
         this.playBeep(this.shoulderFanActive ? 1000 : 500, 0.05);
@@ -326,7 +326,7 @@ class SmartVestApp {
     if (battCoolingBtn) {
       battCoolingBtn.addEventListener('click', () => {
         this.batteryCoolingActive = !this.batteryCoolingActive;
-        battCoolingBtn.innerHTML = `<strong style="font-size: 11px;">❄️ หล่อเย็นแบต: ${this.batteryCoolingActive ? 'เปิด' : 'ปิด'}</strong>`;
+        battCoolingBtn.innerHTML = `<span>❄️ หล่อเย็นแบต: ${this.batteryCoolingActive ? 'เปิด' : 'ปิด'}</span>`;
         battCoolingBtn.classList.toggle('active', this.batteryCoolingActive);
         this.recomputeAll();
         this.playBeep(this.batteryCoolingActive ? 1100 : 450, 0.05);
