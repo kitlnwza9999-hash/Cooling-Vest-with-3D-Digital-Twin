@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Smart Cooling Vest with 3D Digital Twin | เสื้อกั๊กปรับอากาศอัจฉริยะ ESP32</title>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Offline-ready 3D Libraries -->
+  <script src="assets/three.min.js"></script>
+  <script src="assets/OrbitControls.js"></script>
+  <script src="assets/chart.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Global Header Bar -->
+    <header class="header-bar">
+      <div class="brand-section">
+        <div class="brand-text">
+          <h1>Smart Cooling Vest <span class="badge">3D Digital Twin</span></h1>
+          <p>ระบบเสื้อกั๊กปรับอากาศอัจฉริยะควบคุมด้วย ESP32 Dual-Core (4-Fan + BTMS + Peltier)</p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-target="tab-3d">
+          <span>🧊</span> 3D Digital Twin & สภาพแวดล้อม
+        </button>
+        <button class="tab-btn" data-target="tab-bom">
+          <span>📊</span> สเปกอุปกรณ์ & รายการ BOM
+        </button>
+      </nav>
+
+      <!-- System Status & Controls -->
+      <div class="header-status">
+        <div class="status-chip">
+          <div class="status-dot"></div>
+          <span>ESP32: ONLINE (240MHz)</span>
+        </div>
+        <div class="status-chip">
+          <span style="color: var(--accent-cyan);">🔋 11.8V (86%)</span>
+        </div>
+        <button id="btn-power-toggle" class="action-btn" style="background: rgba(255, 51, 102, 0.2); border-color: var(--accent-danger);">
+          ⚡ ปิดระบบ
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Workspace -->
+    <main class="main-layout">
+
+      <!-- ================= TAB 1: 3D DIGITAL TWIN & SIMULATION ================= -->
+      <div id="tab-3d" class="tab-content active">
+        <!-- 3D Canvas Viewport -->
+        <div class="viewport-panel">
+          <!-- View Modes Overlay -->
+          <div class="viewport-overlay-top">
+            <button class="view-mode-pill active" data-mode="NORMAL">
+              <span>👔</span> ปกติ
+            </button>
+            <button class="view-mode-pill" data-mode="XRAY">
+              <span>🔍</span> เอกซเรย์ (X-Ray)
+            </button>
+            <button class="view-mode-pill" data-mode="EXPLODED">
+              <span>💥</span> ระเบิดชิ้นส่วน
+            </button>
+            <button id="btn-shell-toggle" class="view-mode-pill" style="border-color: var(--accent-cyan); color: #fff;" title="คลิกเพื่อสลับ: ทึบ / โปร่งใส / ซ่อนเปลือกเสื้อ">
+              <span>👔 เปลือกเสื้อ: โปร่งใส</span>
+            </button>
+            <button class="view-mode-pill" data-mode="AIRFLOW">
+              <span>💨</span> ทิศทางลม 3 โซน
+            </button>
+            <button class="view-mode-pill" data-mode="THERMAL">
+              <span>🌡️</span> แผนที่ความร้อน
+            </button>
+            <button class="view-mode-pill" data-mode="NIGHT">
+              <span>🌙</span> โหมดกลางคืน (3M)
+            </button>
+            <button id="btn-reset-cam" class="view-mode-pill" style="border-color: rgba(255,255,255,0.2);">
+              <span>🎯</span> รีเซ็ตมุมมอง
+            </button>
+          </div>
+
+          <!-- 3D Component Inspection Overlay Card (Appears when clicking 3D objects) -->
+          <div id="component-inspect-overlay"></div>
+
+          <!-- 3D Canvas element -->
+          <div id="canvas3d"></div>
+
+          <!-- Viewport Bottom Status Legend -->
+          <div class="viewport-overlay-bottom">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #00f0ff; box-shadow: 0 0 6px #00f0ff;"></div>
+              <span>พัดลมเอว 70mm & พัดลมบ่า 40mm</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #38bdf8;"></div>
+              <span>หล่อเย็นแบตเตอรี่ (BTMS)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #9d4edd;"></div>
+              <span>Peltier TEC (Spine)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #00ff88;"></div>
+              <span>ESP32 Pod</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #facc15;"></div>
+              <span>แถบ 3M สะท้อนแสง</span>
+            </div>
+            <div class="legend-item">
+              <span style="color: var(--text-muted); font-size: 11px;">(คลิกชิ้นส่วนเพื่อดูรายละเอียด | ซ้ายหมุน | ขวาเลื่อน | สโครลซูม)</span>
+            </div>
+          </div>
+
+          <!-- Mobile Floating Action Toggle for Telemetry Drawer -->
+          <button id="btn-mobile-sidebar-toggle" class="mobile-sidebar-toggle-btn" title="เปิดแผงควบคุมและสถานะ">
+            <span class="m-toggle-icon">📊</span>
+            <span class="m-toggle-text">แผงควบคุม</span>
+            <span id="mobile-heat-badge" class="m-toggle-badge">51.0°C</span>
+          </button>
+        </div>
+
+        <!-- Mobile Sidebar Backdrop Overlay -->
+        <div id="mobile-sidebar-backdrop" class="mobile-backdrop"></div>
+
+        <!-- Telemetry & Interactive Control Sidebar -->
+        <aside class="telemetry-sidebar">
+          
+          <!-- Mobile Drawer Drag Handle & Close Header (Visible on Mobile only) -->
+          <div class="mobile-drawer-header">
+            <div class="mobile-drag-handle"></div>
+            <div class="mobile-drawer-title-row">
+              <div class="mobile-drawer-title">
+                <span>📊</span>
+                <strong>แดชบอร์ดควบคุม & Telemetry</strong>
+              </div>
+              <button id="btn-close-mobile-sidebar" class="mobile-drawer-close" title="ปิดแผงควบคุม">✕ ปิด</button>
+            </div>
+          </div>
+          
+          <!-- Heat Index Status Banner -->
+          <div id="heat-index-banner" class="heat-index-banner">
+            <div class="heat-index-info">
+              <h4 id="heat-index-title">ดัชนีความร้อน (Heat Index)</h4>
+              <p id="heat-index-desc">คำนวณตามมาตรฐาน NOAA Steadman สภาพอากาศปกติ</p>
+            </div>
+            <div id="heat-index-badge" class="heat-index-badge" style="color: var(--accent-green);">ปกติ (Safe)</div>
+          </div>
+
+          <!-- Section: Environment & Test Simulation -->
+          <div class="sidebar-section">
+            <div class="section-header">
+              <span class="section-title">🧪 การจำลองสภาพแวดล้อมทดสอบ</span>
+              <span style="font-size: 10px; color: var(--accent-cyan); font-family: var(--font-mono);">LIVE SIM</span>
+            </div>
+
+            <!-- Temperature Slider -->
+            <div class="control-row">
+              <div class="control-label-row">
+                <span class="control-label">อุณหภูมิแวดล้อม (Ambient Temp)</span>
+                <span id="val-slider-temp" class="slider-val">36.0°C</span>
+              </div>
+              <input type="range" id="slider-ambient-temp" class="custom-slider" min="18" max="48" step="0.5" value="36.0">
+            </div>
+
+            <!-- Humidity Slider -->
+            <div class="control-row">
+              <div class="control-label-row">
+                <span class="control-label">ความชื้นสัมพัทธ์ (Relative Humidity)</span>
+                <span id="val-slider-hum" class="slider-val">65%</span>
+              </div>
+              <input type="range" id="slider-ambient-hum" class="custom-slider" min="20" max="95" step="1" value="65">
+            </div>
+
+            <!-- Exertion Level -->
+            <div class="control-row">
+              <div class="control-label-row">
+                <span class="control-label">ระดับภาระงานของผู้สวมใส่ (Workload)</span>
+                <span id="val-slider-exert" class="slider-val">ทำงานระดับปานกลาง</span>
+              </div>
+              <input type="range" id="slider-exertion" class="custom-slider" min="1" max="3" step="1" value="2">
+            </div>
+
+            <!-- Scenario Presets -->
+            <div style="margin-top: 10px;">
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">สถานการณ์จำลองสำเร็จรูป (Presets):</span>
+              <div class="preset-grid">
+                <button class="preset-btn" data-preset="bkk_noon">
+                  <strong>☀️ แดดเที่ยง กทม.</strong>
+                  <span>41°C | 76% RH (แดดจัด)</span>
+                </button>
+                <button class="preset-btn" data-preset="factory">
+                  <strong>🏭 โรงงาน / ก่อสร้าง</strong>
+                  <span>39.5°C | 52% RH (งานหนัก)</span>
+                </button>
+                <button class="preset-btn" data-preset="logistics">
+                  <strong>🚚 คลังสินค้า / ขนส่ง</strong>
+                  <span>34°C | 68% RH (ยกของ)</span>
+                </button>
+                <button class="preset-btn" data-preset="office">
+                  <strong>🏢 เข้าห้องแอร์ออฟฟิศ</strong>
+                  <span>24°C | 50% RH (ประหยัด)</span>
+                </button>
+                <button class="preset-btn" data-preset="heatstroke" style="grid-column: span 2; border-color: rgba(255, 51, 102, 0.4); background: rgba(255, 51, 102, 0.1);">
+                  <strong style="color: var(--accent-danger);">🚨 ทดสอบสภาวะเสี่ยงฮีทสโตรก & สัญญาณ SOS</strong>
+                  <span>43.5°C | 85% RH | ชีพจรเต้นเร็ว >130 BPM</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Cooling System Control & Mode -->
+          <div class="sidebar-section">
+            <div class="section-header">
+              <span class="section-title">⚙️ โหมดควบคุมระบบปรับอากาศ</span>
+              <span style="font-size: 10px; color: var(--accent-green); font-family: var(--font-mono);">ESP32 PID</span>
+            </div>
+
+            <!-- Operating Mode Selector -->
+            <div class="mode-selector">
+              <button class="mode-btn active" data-mode="AUTO">🤖 AUTO AI</button>
+              <button class="mode-btn" data-mode="TURBO">⚡ TURBO</button>
+              <button class="mode-btn" data-mode="ECO">🍃 ECO PULSE</button>
+            </div>
+
+            <!-- Multi-Zone Hardware Toggles (3 Zones: Lower Waist Blowers, Shoulder Fans, Battery BTMS) -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;">
+              <button id="btn-toggle-waist-fan" class="preset-btn active" style="text-align: center; justify-content: center; padding: 7px 4px;" title="เปิด/ปิดพัดลมระบายอากาศล่าง (พัดลมหอยโข่งคู่ 70mm)">
+                <strong style="font-size: 11px;">🌪️ พัดลมล่าง: เปิด</strong>
+              </button>
+              <button id="btn-toggle-shoulder-fan" class="preset-btn active" style="text-align: center; justify-content: center; padding: 7px 4px;" title="เปิด/ปิดพัดลมเป่าหน้าและต้นคอบนบ่าไหล่คู่">
+                <strong style="font-size: 11px;">🌬️ พัดลมบ่า: เปิด</strong>
+              </button>
+              <button id="btn-toggle-batt-cooling" class="preset-btn active" style="text-align: center; justify-content: center; padding: 7px 4px;" title="เปิด/ปิดระบบหล่อเย็นแบตเตอรี่เฉพาะทาง BTMS">
+                <strong style="font-size: 11px;">❄️ หล่อเย็นแบต: เปิด</strong>
+              </button>
+            </div>
+
+            <!-- Real-time Metric Grid (10 Live Parameters) -->
+            <div class="metric-grid">
+              <div class="metric-card">
+                <span class="metric-label">ดัชนีความร้อน (Heat Index)</span>
+                <div class="metric-value-container">
+                  <span id="val-heat-index" class="metric-val warning">42.0</span>
+                  <span class="metric-unit">°C</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">จุดน้ำค้าง (Dew Point)</span>
+                <div class="metric-value-container">
+                  <span id="val-dew-point" class="metric-val">28.5</span>
+                  <span class="metric-unit">°C</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">พัดลมเอวคู่ (Waist Blowers)</span>
+                <div class="metric-value-container">
+                  <span id="val-fan-rpm" class="metric-val cool">3100</span>
+                  <span class="metric-unit">RPM (<span id="val-fan-pwm">65%</span>)</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">พัดลมบ่าคู่ (Shoulder Fans)</span>
+                <div class="metric-value-container">
+                  <span id="val-shoulder-rpm" class="metric-val cool">3400</span>
+                  <span class="metric-unit">RPM (<span id="val-shoulder-pwm">70%</span>)</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">อุณหภูมิแบตเตอรี่ (BTMS)</span>
+                <div class="metric-value-container">
+                  <span id="val-batt-temp" class="metric-val good">31.8°C</span>
+                  <span class="metric-unit">NTC</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">แผ่นเย็น Peltier (Spine)</span>
+                <div class="metric-value-container">
+                  <span id="val-tec-watts" class="metric-val cool">18</span>
+                  <span class="metric-unit">W (<span id="val-tec-temp">23.5°C</span>)</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">อุณหภูมิผิวหนัง (Skin Temp)</span>
+                <div class="metric-value-container">
+                  <span id="val-skin-temp" class="metric-val good">34.2</span>
+                  <span class="metric-unit">°C</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">อัตราเต้นหัวใจ (Heart Rate)</span>
+                <div class="metric-value-container">
+                  <span id="val-heart-rate" class="metric-val">95</span>
+                  <span class="metric-unit">BPM</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">กระแสไฟรวม (Total Draw)</span>
+                <div class="metric-value-container">
+                  <span id="val-current" class="metric-val">2.15</span>
+                  <span class="metric-unit">A</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">เวลาใช้งานที่เหลือ (Estimated)</span>
+                <div class="metric-value-container">
+                  <span id="val-runtime" class="metric-val good">3.2 ชม.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Safety Interlocks -->
+          <div class="sidebar-section">
+            <div class="section-header">
+              <span class="section-title">🛡️ ระบบตรวจสอบความปลอดภัย (Interlocks)</span>
+              <span style="font-size: 10px; color: var(--accent-green); font-family: var(--font-mono);">ACTIVE</span>
+            </div>
+
+            <div class="safety-status-list">
+              <div class="safety-item">
+                <span>ป้องกันการเกิดหยดน้ำ (Anti-Dew Point)</span>
+                <span id="safe-dew" class="safety-badge">ปกติ (Safe)</span>
+              </div>
+              <div class="safety-item">
+                <span>ป้องกันฮีตซิงก์ระบายความร้อนร้อนเกิน (< 55°C)</span>
+                <span id="safe-heat" class="safety-badge">ปกติ (<55°C)</span>
+              </div>
+              <div class="safety-item">
+                <span>ควบคุมความร้อนแบตเตอรี่ (BTMS Overheat < 45°C)</span>
+                <span id="safe-batt-temp" class="safety-badge">อุณหภูมิปกติ (<45°C)</span>
+              </div>
+              <div class="safety-item">
+                <span>จำกัดกระแสแบตเตอรี่ & ฟิวส์ตัดวงจร (PTC 5A)</span>
+                <span id="safe-batt" class="safety-badge">จ่ายกระแสปกติ</span>
+              </div>
+              <div class="safety-item">
+                <span>ฉนวนกันเหงื่อ & ละอองน้ำไฟฟ้าสถิต (IP54 Enclosure)</span>
+                <span class="safety-badge">ซีลสมบูรณ์</span>
+              </div>
+              <div class="safety-item">
+                <span>ตรวจจับความเสี่ยงฮีทสโตรก & ผู้ป่วยหมดสติ</span>
+                <span id="safe-worker" class="safety-badge">สภาวะร่างกายปลอดภัย</span>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+      </div>
+
+      <!-- ================= TAB 2: WIRING & CIRCUIT ARCHITECTURE ================= -->
+      <div id="tab-wiring" class="tab-content">
+        <div class="full-tab-view">
+          <div class="tab-title-bar">
+            <h2>⚡ การเดินสายไฟ สถาปัตยกรรมวงจร และมาตรฐานความปลอดภัย</h2>
+            <p>แผนภาพผังวงจรไฟฟ้าความแม่นยำสูง แยกภาคจ่ายไฟ 12V/5V/3.3V, วงจรขับพัดลม 4 จุดแยกโซน, ระบบหล่อเย็นแบตเตอรี่ BTMS และระบบความปลอดภัยกันเหงื่อ</p>
+          </div>
+
+          <div class="wiring-layout">
+            <!-- Left: Interactive SVG Schematic -->
+            <div class="schematic-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 13px; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase;">
+                  🔍 แผนภาพผังวงจรอิเล็กทรอนิกส์ (Interactive Schematic Diagram)
+                </span>
+                <span style="font-size: 11px; color: var(--text-muted);">นำเมาส์ชี้ที่อุปกรณ์เพื่อดูรายละเอียดและความปลอดภัย</span>
+              </div>
+              <div id="schematic-container" class="schematic-svg-container"></div>
+            </div>
+
+            <!-- Right: Component Specs, Pinout & Safety Design Details -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <!-- Dynamic Details Card on hover -->
+              <div class="spec-card">
+                <div class="section-title" style="margin-bottom: 12px;">📌 รายละเอียดอุปกรณ์ที่กำลังตรวจสอบ</div>
+                <div id="schematic-detail-card" style="font-size: 13px; line-height: 1.6; color: var(--text-muted);">
+                  <p>นำเมาส์ไปชี้ที่อุปกรณ์ในผังวงจรด้านซ้าย (เช่น ESP32, แบตเตอรี่ BTMS, พัดลมบ่าไหล่, พัดลมเอว, แผ่น Peltier, BME280) เพื่อดูมาตรฐานการเชื่อมต่อและข้อมูลการเดินสายไฟอย่างปลอดภัย</p>
+                </div>
+              </div>
+
+              <!-- ESP32 Pinout Mapping -->
+              <div class="spec-card">
+                <div class="section-title" style="margin-bottom: 8px;">🔌 ตารางกำหนดขาพอร์ต ESP32 (GPIO Pinout)</div>
+                <table class="pinout-table">
+                  <thead>
+                    <tr>
+                      <th>GPIO</th>
+                      <th>สัญญาณ</th>
+                      <th>ประเภท</th>
+                      <th>อุปกรณ์ปลายทาง</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="color: var(--accent-green);">GPIO 18</td>
+                      <td>FAN_PWM</td>
+                      <td>PWM Out (25kHz)</td>
+                      <td>MOSFET ขับพัดลมเอวคู่ 12V (70mm)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-green);">GPIO 19</td>
+                      <td>FAN_TACH</td>
+                      <td>Digital In (Interrupt)</td>
+                      <td>สัญญาณความเร็วรอบพัดลมจริง (RPM)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-cyan);">GPIO 26</td>
+                      <td>SHOULDER_PWM</td>
+                      <td>PWM Out (25kHz)</td>
+                      <td>MOSFET ขับพัดลมบ่าไหล่เป่าหน้าคู่ (40mm)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-purple);">GPIO 25</td>
+                      <td>TEC_PWM</td>
+                      <td>PWM Out (40kHz)</td>
+                      <td>วงจรขับ Peltier TEC1-12706 (Spine)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-warning);">GPIO 39</td>
+                      <td>BATT_NTC</td>
+                      <td>Analog In (ADC1_CH3)</td>
+                      <td>NTC 10K วัดอุณหภูมิเซลล์แบตเตอรี่ (BTMS)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-cyan);">GPIO 21</td>
+                      <td>I2C_SDA</td>
+                      <td>I2C Bus (Data)</td>
+                      <td>BME280, MAX30102, MPU6050</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-cyan);">GPIO 22</td>
+                      <td>I2C_SCL</td>
+                      <td>I2C Bus (Clock)</td>
+                      <td>BME280, MAX30102, MPU6050</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-warning);">GPIO 34</td>
+                      <td>BATT_SENSE</td>
+                      <td>Analog In (ADC)</td>
+                      <td>วงจรแบ่งแรงดัน (Voltage Divider 12V)</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-danger);">GPIO 4</td>
+                      <td>BUZZER</td>
+                      <td>Digital Out</td>
+                      <td>บัซเซอร์เตือนภัยฉุกเฉิน 85dB</td>
+                    </tr>
+                    <tr>
+                      <td style="color: var(--accent-danger);">GPIO 2</td>
+                      <td>HAPTIC</td>
+                      <td>Digital Out</td>
+                      <td>มอเตอร์สั่นเตือนที่คอเสื้อ (Vibration SOS)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Safety Design Highlights -->
+              <div class="spec-card">
+                <div class="section-title" style="margin-bottom: 8px; color: var(--accent-warning);">
+                  🛡️ มาตรการความปลอดภัยทางไฟฟ้าและสรีรวิทยา
+                </div>
+                <ul style="font-size: 12px; color: var(--text-muted); line-height: 1.6; padding-left: 18px;">
+                  <li><strong>การป้องกันความร้อนสะสมในแบตเตอรี่ (BTMS):</strong> ติดตั้งแผ่นกราฟีนเกลี่ยความร้อน ฮีตซิงก์อลูมิเนียม พัดลมดูดระบายความร้อนโดยเฉพาะ และ NTC Sensor บน GPIO 39 ตัดไฟหรือเร่งระบายความร้อนหากอุณหภูมิเกิน 45°C</li>
+                  <li><strong>การป้องกันเหงื่อและความชื้น (IP54/IP65):</strong> เคลือบน้ำยา Silicone Conformal Coating บนแผงวงจรทั้งหมด และใช้กล่องบรรจุภัณฑ์แบบกันน้ำพร้อมยางซีลซิลิโคน</li>
+                  <li><strong>ป้องกันการลัดวงจร (Short Circuit Protection):</strong> ติดตั้ง Resettable PTC Fuse ขนาด 5A ตัดวงจรภายในเวลาต่ำกว่า 50ms เมื่อเกิดการลัดวงจร</li>
+                  <li><strong>การจัดระเบียบสายไฟ (Harness Routing):</strong> ใช้สายไฟแกนทองแดงชุบดีบุกหุ้มซิลิโคนทนความร้อนสูง (Silicone Wire 18/20 AWG สำหรับไฟหลัก, 26 AWG สำหรับสัญญาณ) เดินร้อยในท่อผ้าป้องกันการเสียดสี</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 3: ESP32 FIRMWARE SOURCE CODE ================= -->
+      <div id="tab-firmware" class="tab-content">
+        <div class="full-tab-view">
+          <div class="tab-title-bar">
+            <div class="code-header-actions">
+              <div>
+                <h2>💻 เฟิร์มแวร์ ESP32 สำหรับควบคุมระบบปรับอากาศ (Production C++ Code)</h2>
+                <p>โค้ดสถาปัตยกรรม Dual-Core FreeRTOS ควบคุมพัดลม 4 ตัว 2 โซน, ระบบหล่อเย็นแบตเตอรี่ BTMS, คำนวณ Heat Index, ป้องกันจุดน้ำค้าง (Dew Point Interlock) และเชื่อมต่อ Digital Twin</p>
+              </div>
+              <button id="btn-copy-code" class="action-btn">
+                📋 คัดลอกโค้ด C++
+              </button>
+            </div>
+          </div>
+
+          <pre class="code-container"><code id="esp32-code-block">/**
+ * ==============================================================================
+ * Project: Smart Cooling Vest with 3D Digital Twin Telemetry & Dual-Zone Turbofans
+ * Microcontroller: ESP32-WROOM-32E (240MHz Dual-Core)
+ * Framework: Arduino IDE / PlatformIO with FreeRTOS
+ * Author: Antigravity Engineering Team
+ * ==============================================================================
+ */
+
+#include &lt;Arduino.h&gt;
+#include &lt;Wire.h&gt;
+#include &lt;Adafruit_Sensor.h&gt;
+#include &lt;Adafruit_BME280.h&gt;
+#include &lt;BLEDevice.h&gt;
+#include &lt;BLEServer.h&gt;
+#include &lt;BLEUtils.h&gt;
+#include &lt;BLE2902.h&gt;
+
+// ================= PIN DEFINITIONS =================
+#define PIN_FAN_PWM          18   // PWM พัดลมหอยโข่งคู่ลำตัวและหลัง (70mm 12V)
+#define PIN_FAN_TACH         19   // สัญญาณวัดรอบพัดลม (Tachometer Interrupt)
+#define PIN_SHOULDER_PWM     26   // PWM พัดลมไมโครเทอร์โบติดบ่าไหล่เป่าหน้า/คอ (40mm 12V)
+#define PIN_TEC_PWM          25   // PWM ควบคุมแผ่นเย็น Peltier TEC1-12706
+#define PIN_I2C_SDA          21   // I2C Data สำหรับเซนเซอร์สภาพแวดล้อม
+#define PIN_I2C_SCL          22   // I2C Clock
+#define PIN_BATT_SENSE       34   // ADC วัดระดับแรงดันแบตเตอรี่ (Voltage Divider)
+#define PIN_BATT_NTC         39   // ADC1_CH3 วัดอุณหภูมิผิวเซลล์แบตเตอรี่ (BTMS)
+#define PIN_HEATSINK_NTC     35   // ADC วัดอุณหภูมิฮีตซิงก์แผ่น Peltier
+#define PIN_BUZZER            4   // บัซเซอร์เตือนภัยฉุกเฉิน
+#define PIN_HAPTIC            2   // มอเตอร์สั่นเตือนที่คอเสื้อ
+
+// ================= PWM CHANNELS & CONSTANTS =================
+#define PWM_FREQ_FAN         25000 // 25kHz High Frequency (เงียบ ไร้เสียงฮัม)
+#define PWM_FREQ_TEC         40000 // 40kHz สำหรับวงจรกรอง LC Filter
+#define PWM_RES              8     // 8-bit Resolution (0 - 255)
+#define PWM_CH_FAN           0     // Channel 0: Waist Fans
+#define PWM_CH_TEC           1     // Channel 1: Peltier TEC
+#define PWM_CH_SHOULDER_FAN  2     // Channel 2: Shoulder Neck/Face Fans
+
+#define MAX_HEATSINK_TEMP    55.0  // อุณหภูมิฮีตซิงก์สูงสุดที่ยอมรับได้ (°C)
+#define MAX_BATT_TEMP        45.0  // อุณหภูมิแบตเตอรี่สูงสุดที่ยอมรับได้ (°C)
+#define BATT_CUTOFF_VOLTS    9.6   // แรงดันตัดการทำงานเพื่อถนอมเซลล์ Li-ion (3.2V/cell)
+
+// ================= GLOBAL OBJECTS & STRUCTS =================
+Adafruit_BME280 bme; // BME280 บน I2C Address 0x76
+
+struct SystemTelemetry {
+  float ambientTemp;        // อุณหภูมิแวดล้อม (°C)
+  float humidity;           // ความชื้นสัมพัทธ์ (% RH)
+  float heatIndex;          // ดัชนีความร้อน NOAA (°C)
+  float dewPoint;           // อุณหภูมิจุดน้ำค้าง (°C)
+  float skinTemp;           // อุณหภูมิผิวหนัง (°C)
+  float heatsinkTemp;       // อุณหภูมิแผงระบายความร้อน (°C)
+  float batteryTemp;        // อุณหภูมิเซลล์แบตเตอรี่ NTC (°C)
+  uint16_t heartRate;       // อัตราการเต้นของหัวใจ (BPM)
+  uint16_t fanRPM;          // ความเร็วรอบพัดลมเอวจริง
+  uint8_t fanDuty;          // สัญญาณ PWM พัดลมเอว (0-255)
+  uint8_t shoulderFanDuty;  // สัญญาณ PWM พัดลมบ่าไหล่ (0-255)
+  uint8_t tecDuty;          // สัญญาณ PWM Peltier (0-255)
+  float batteryVolts;       // แรงดันแบตเตอรี่ (V)
+  bool shoulderFanEnabled;  // สถานะเปิด/ปิดพัดลมบ่า
+  bool batteryCoolingActive;// สถานะหล่อเย็นแบตเตอรี่ BTMS
+  bool condensationAlert;   // ธงเตือนความเสี่ยงหยดน้ำ
+  bool heatStrokeAlert;     // ธงเตือนภัยสภาวะลมแดด
+  bool emergencyShutdown;   // ธงตัดการทำงานฉุกเฉิน
+} telemetry;
+
+volatile uint32_t fanPulseCounter = 0;
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+// Interrupt Service Routine วัดรอบพัดลม
+void IRAM_ATTR onFanTachPulse() {
+  portENTER_CRITICAL_ISR(&mux);
+  fanPulseCounter++;
+  portEXIT_CRITICAL_ISR(&mux);
+}
+
+// ================= MATHEMATICAL CALCULATIONS =================
+
+/**
+ * คำนวณจุดน้ำค้าง (Dew Point) ตามสูตร Magnus-Tetens
+ * ใช้เพื่อควบคุมแผ่น Peltier ไม่ให้อุณหภูมิต่ำกว่าจุดน้ำค้าง ป้องกันการเกิดเหงื่อหยดน้ำ
+ */
+float calculateDewPoint(float temp, float humidity) {
+  float a = 17.625;
+  float b = 243.04;
+  float alpha = ((a * temp) / (b + temp)) + log(humidity / 100.0);
+  return (b * alpha) / (a - alpha);
+}
+
+/**
+ * คำนวณดัชนีความร้อน NOAA Steadman Heat Index
+ */
+float calculateHeatIndex(float tempC, float humidity) {
+  float T = (tempC * 9.0 / 5.0) + 32.0; // แปลงเป็น Fahrenheit
+  float R = humidity;
+  float hi = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (R * 0.094));
+  
+  if (hi >= 80.0) {
+    hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
+         - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
+         + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+  }
+  return (hi - 32.0) * 5.0 / 9.0; // แปลงกลับเป็น Celsius
+}
+
+// ================= FREERTOS TASKS =================
+
+/**
+ * Task 1 (Core 1): ตรวจวัดสภาพแวดล้อมและประมวลผลการปรับอากาศ 2 โซน
+ */
+void TaskCoolingControl(void *pvParameters) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(100); // 10Hz
+
+  for (;;) {
+    // 1. อ่านข้อมูลเซนเซอร์สภาพแวดล้อม
+    telemetry.ambientTemp = bme.readTemperature();
+    telemetry.humidity = bme.readHumidity();
+    
+    // 2. คำนวณ Heat Index และ Dew Point
+    telemetry.heatIndex = calculateHeatIndex(telemetry.ambientTemp, telemetry.humidity);
+    telemetry.dewPoint = calculateDewPoint(telemetry.ambientTemp, telemetry.humidity);
+
+    // 3. ปรับระดับความเย็นอัตโนมัติ (AI-Adaptive Auto Mode)
+    if (!telemetry.emergencyShutdown) {
+      if (telemetry.heatIndex < 28.0) {
+        telemetry.fanDuty = 65;           // 25% ลมลำตัวเบา
+        telemetry.shoulderFanDuty = 75;   // 30% ลมเป่าหน้าสบาย
+        telemetry.tecDuty = 0;            // ปิด Peltier
+      } else if (telemetry.heatIndex < 35.0) {
+        telemetry.fanDuty = 115;          // 45% ลมปานกลาง
+        telemetry.shoulderFanDuty = 140;  // 55% ลมเป่าหน้าคลายร้อน
+        telemetry.tecDuty = 75;           // 30% ความเย็นกระดูกสันหลัง
+      } else if (telemetry.heatIndex < 42.0) {
+        telemetry.fanDuty = 180;          // 70% ลมแรง
+        telemetry.shoulderFanDuty = 205;  // 80% ลมเป่าหน้าเข้มข้น
+        telemetry.tecDuty = 160;          // 65% ความเย็นเข้มข้น
+      } else {
+        // ดัชนีความร้อนระดับอันตราย (>42°C)
+        telemetry.fanDuty = 245;          // 96% ลมแรงสูงสุด
+        telemetry.shoulderFanDuty = 255;  // 100% ลมเป่าหน้าเต็มกำลัง
+        telemetry.tecDuty = 220;          // 86% ความเย็นเร่งด่วน
+      }
+
+      // ตรวจสอบสถานะการปิดพัดลมบ่าแบบแมนนวล
+      if (!telemetry.shoulderFanEnabled) {
+        telemetry.shoulderFanDuty = 0;
+      }
+
+      // 4. Anti-Condensation Watchdog Interlock
+      float estimatedColdPlate = telemetry.ambientTemp - (telemetry.tecDuty / 255.0) * 14.0;
+      if (estimatedColdPlate &lt; (telemetry.dewPoint + 1.5)) {
+        telemetry.condensationAlert = true;
+        telemetry.tecDuty = max(0, (int)(((telemetry.ambientTemp - (telemetry.dewPoint + 1.5)) / 14.0) * 255.0));
+      } else {
+        telemetry.condensationAlert = false;
+      }
+    } else {
+      // สภาวะฉุกเฉิน
+      telemetry.fanDuty = 255;
+      telemetry.shoulderFanDuty = 0;
+      telemetry.tecDuty = 0;
+    }
+
+    // ขับสัญญาณ PWM ไปยังมอเตอร์พัดลมและแผ่นเย็น
+    ledcWrite(PWM_CH_FAN, telemetry.fanDuty);
+    ledcWrite(PWM_CH_SHOULDER_FAN, telemetry.shoulderFanDuty);
+    ledcWrite(PWM_CH_TEC, telemetry.tecDuty);
+
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+/**
+ * Task 2 (Core 0): ระบบเฝ้าระวังความปลอดภัยและสัญญาณชีพ (Safety Watchdog & BTMS)
+ */
+void TaskSafetyWatchdog(void *pvParameters) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(50); // 20Hz
+
+  for (;;) {
+    // 1. อ่านแรงดันแบตเตอรี่ (ADC ผ่าน Voltage Divider)
+    int rawBatt = analogRead(PIN_BATT_SENSE);
+    telemetry.batteryVolts = (rawBatt / 4095.0) * 3.3 * ((30.0 + 10.0) / 10.0);
+
+    // 2. อ่านอุณหภูมิเซลล์แบตเตอรี่ (BTMS NTC Thermistor บน GPIO 39)
+    int rawBattNtc = analogRead(PIN_BATT_NTC);
+    telemetry.batteryTemp = (rawBattNtc / 4095.0) * 65.0; // สเกลอุณหภูมิ NTC
+    telemetry.batteryCoolingActive = telemetry.batteryTemp &gt; 35.0;
+
+    // 3. อ่านอุณหภูมิฮีตซิงก์แผ่น Peltier
+    int rawNtc = analogRead(PIN_HEATSINK_NTC);
+    telemetry.heatsinkTemp = (rawNtc / 4095.0) * 80.0;
+
+    // ตรวจสอบความปลอดภัยระดับวิกฤต:
+    if (telemetry.heatsinkTemp &gt; MAX_HEATSINK_TEMP || 
+        telemetry.batteryTemp &gt; MAX_BATT_TEMP || 
+        telemetry.batteryVolts &lt; BATT_CUTOFF_VOLTS) {
+      telemetry.emergencyShutdown = true;
+      digitalWrite(PIN_BUZZER, HIGH);
+    } else {
+      telemetry.emergencyShutdown = false;
+      digitalWrite(PIN_BUZZER, LOW);
+    }
+
+    // ตรวจสอบสภาวะเสี่ยงฮีทสโตรก
+    if (telemetry.heatIndex &gt; 44.0 && telemetry.heartRate &gt; 135) {
+      telemetry.heatStrokeAlert = true;
+      digitalWrite(PIN_HAPTIC, (millis() % 500 &lt; 250) ? HIGH : LOW);
+    } else {
+      telemetry.heatStrokeAlert = false;
+      digitalWrite(PIN_HAPTIC, LOW);
+    }
+
+    // คำนวณความเร็วรอบพัดลมจริง (RPM) ทุกๆ 1 วินาที
+    static uint32_t lastTachCheck = 0;
+    if (millis() - lastTachCheck &gt;= 1000) {
+      portENTER_CRITICAL(&mux);
+      uint32_t pulses = fanPulseCounter;
+      fanPulseCounter = 0;
+      portEXIT_CRITICAL(&mux);
+      telemetry.fanRPM = (pulses / 2) * 60;
+      lastTachCheck = millis();
+    }
+
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+// ================= SETUP & MAIN =================
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+
+  telemetry.shoulderFanEnabled = true;
+  telemetry.batteryCoolingActive = true;
+
+  pinMode(PIN_BUZZER, OUTPUT);
+  pinMode(PIN_HAPTIC, OUTPUT);
+  pinMode(PIN_FAN_TACH, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_FAN_TACH), onFanTachPulse, FALLING);
+
+  // ตั้งค่าฮาร์ดแวร์ PWM (LEDC) สำหรับพัดลมเอว, พัดลมบ่า และ Peltier
+  ledcSetup(PWM_CH_FAN, PWM_FREQ_FAN, PWM_RES);
+  ledcAttachPin(PIN_FAN_PWM, PWM_CH_FAN);
+
+  ledcSetup(PWM_CH_SHOULDER_FAN, PWM_FREQ_FAN, PWM_RES);
+  ledcAttachPin(PIN_SHOULDER_PWM, PWM_CH_SHOULDER_FAN);
+
+  ledcSetup(PWM_CH_TEC, PWM_FREQ_TEC, PWM_RES);
+  ledcAttachPin(PIN_TEC_PWM, PWM_CH_TEC);
+
+  if (!bme.begin(0x76, &Wire)) {
+    Serial.println(F("[ERR] BME280 not found! Check wiring."));
+  }
+
+  // สร้าง FreeRTOS Tasks กระจายลงสองคอร์ประมวลผล
+  xTaskCreatePinnedToCore(TaskCoolingControl, "CoolingCtrl", 4096, NULL, 2, NULL, 1); // Core 1
+  xTaskCreatePinnedToCore(TaskSafetyWatchdog, "SafetyWatch", 3072, NULL, 3, NULL, 0); // Core 0
+
+  Serial.println(F("[OK] Smart Cooling Vest Dual-Core System Initialized."));
+}
+
+void loop() {
+  vTaskDelay(pdMS_TO_TICKS(1000));
+}
+</code></pre>
+        </div>
+      </div>
+
+      <!-- ================= TAB 4: SPECS & BOM ================= -->
+      <div id="tab-bom" class="tab-content">
+        <div class="full-tab-view">
+          <div class="tab-title-bar">
+            <h2>📊 สเปกทางเทคนิค และรายการอุปกรณ์ (Bill of Materials - BOM)</h2>
+            <p>รายการฮาร์ดแวร์อิเล็กทรอนิกส์ พัดลม 4 ตัว ระบบหล่อเย็นแบตเตอรี่ BTMS ผ้าและระบบระบายอากาศ พร้อมราคาประมาณการ</p>
+          </div>
+
+          <div class="bom-grid">
+            <!-- Left: BOM Table -->
+            <div class="spec-card">
+              <div class="section-title">📦 รายการอุปกรณ์ต้นแบบ (BOM List)</div>
+              <table class="bom-table">
+                <thead>
+                  <tr>
+                    <th>ลำดับ</th>
+                    <th>รายการอุปกรณ์</th>
+                    <th>รุ่น / สเปกทางเทคนิค</th>
+                    <th>หน้าที่ในระบบ</th>
+                    <th>จำนวน</th>
+                    <th>ราคาประเมิน (บาท)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td><strong>ไมโครคอนโทรลเลอร์</strong></td>
+                    <td>ESP32-WROOM-32E (240MHz Dual-Core, BLE/Wi-Fi)</td>
+                    <td>ประมวลผลอัลกอริทึม FreeRTOS, Heat Index, ส่ง Digital Twin</td>
+                    <td>1 ชิ้น</td>
+                    <td>160.-</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td><strong>พัดลมหอยโข่งแรงดันสูงคู่ (เอว)</strong></td>
+                    <td>9733 Centrifugal Blower 12V 0.85A (5400 RPM, 70mm)</td>
+                    <td>สร้างแรงดันลมผลักผ่านช่อง 3D Spacer Mesh ลำตัว</td>
+                    <td>2 ชิ้น</td>
+                    <td>380.-</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td><strong>พัดลมไมโครเทอร์โบคู่ (บ่าไหล่)</strong></td>
+                    <td>5015 Micro Blower 12V 0.25A (5000 RPM, องศาเป่าหน้า 45°)</td>
+                    <td>เป่าลมเย็นตรงสู่ใบหน้าและต้นคอ ป้องกันหน้ามืดแบบแฮนด์ฟรี</td>
+                    <td>2 ชิ้น</td>
+                    <td>220.-</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td><strong>ระบบหล่อเย็นแบตเตอรี่ (BTMS)</strong></td>
+                    <td>Anodized Aluminum Fin + 3010 Micro Fan + NTC 10K Sensor</td>
+                    <td>ดึงความร้อนสะสมออกจากก้อนแบตเตอรี่ ป้องกันบวมและยืดอายุเซลล์</td>
+                    <td>1 ชุด</td>
+                    <td>140.-</td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td><strong>แผ่นเย็นเทอร์โมอิเล็กทริก</strong></td>
+                    <td>Peltier TEC1-12706 (12V 35W Active Cold Plate)</td>
+                    <td>สร้างจุดสัมผัสความเย็นที่แนวกระดูกสันหลังส่วนบน</td>
+                    <td>1 ชิ้น</td>
+                    <td>95.-</td>
+                  </tr>
+                  <tr>
+                    <td>6</td>
+                    <td><strong>ท่อฮีตไปป์ & ฮีตซิงก์</strong></td>
+                    <td>Dual 6mm Sintered Copper Heatpipe + Fin Block</td>
+                    <td>ดึงความร้อนจาก Peltier ด้านร้อนส่งไประบายในช่องพัดลม</td>
+                    <td>1 ชุด</td>
+                    <td>220.-</td>
+                  </tr>
+                  <tr>
+                    <td>7</td>
+                    <td><strong>เซนเซอร์สภาพแวดล้อม</strong></td>
+                    <td>BME280 (Temp, Humidity, Pressure I2C)</td>
+                    <td>วัดอุณหภูมิและความชื้นแวดล้อม คำนวณ Heat Index</td>
+                    <td>1 ชิ้น</td>
+                    <td>120.-</td>
+                  </tr>
+                  <tr>
+                    <td>8</td>
+                    <td><strong>เซนเซอร์วัดอุณหภูมิร่างกาย</strong></td>
+                    <td>DS18B20 High Precision หรือ Medical NTC 10K</td>
+                    <td>ป้อนกลับอุณหภูมิร่างกายเพื่อควบคุมแบบ Closed-loop</td>
+                    <td>1 ชิ้น</td>
+                    <td>90.-</td>
+                  </tr>
+                  <tr>
+                    <td>9</td>
+                    <td><strong>เซนเซอร์ชีพจร & สภาพร่างกาย</strong></td>
+                    <td>MAX30102 PPG Biometric + MPU6050 6-Axis IMU</td>
+                    <td>ตรวจจับชีพจรเร็ว (ฮีทสโตรก) และการล้มหมดสติ</td>
+                    <td>1 ชุด</td>
+                    <td>190.-</td>
+                  </tr>
+                  <tr>
+                    <td>10</td>
+                    <td><strong>วงจรขับกำลัง Triple MOSFET</strong></td>
+                    <td>Logic MOSFET IRLZ44N + Dual AO3400A + LC Filter</td>
+                    <td>ขับ PWM พัดลมเอว, พัดลมบ่า และแผ่นความเย็น Peltier</td>
+                    <td>1 ชุด</td>
+                    <td>95.-</td>
+                  </tr>
+                  <tr>
+                    <td>11</td>
+                    <td><strong>วงจรสเต็ปดาวน์ประสิทธิภาพสูง</strong></td>
+                    <td>MP1584 Synchronous Buck (12V to 5V 3A, 92% Eff)</td>
+                    <td>แปลงไฟ 12V จ่ายเลี้ยง ESP32 และเซนเซอร์อย่างเสถียร</td>
+                    <td>1 ชิ้น</td>
+                    <td>45.-</td>
+                  </tr>
+                  <tr>
+                    <td>12</td>
+                    <td><strong>แบตเตอรี่ & วงจร BMS</strong></td>
+                    <td>3S2P Li-ion 18650 Pack 11.1V 7000mAh + 15A Hardware BMS</td>
+                    <td>จ่ายไฟให้ระบบต่อเนื่อง 3.2 - 8 ชั่วโมงตามโหมดใช้งาน</td>
+                    <td>1 ชุด</td>
+                    <td>580.-</td>
+                  </tr>
+                  <tr>
+                    <td>13</td>
+                    <td><strong>โครงสร้างผ้าเสื้อกั๊ก & แถบ 3M</strong></td>
+                    <td>Cordura 500D + แถบสะท้อนแสง 3M Scotchlite + 3D Mesh 8mm</td>
+                    <td>ผ้าทนทาน ระบายอากาศดี มีแถบสะท้อนแสงนิรภัยกลางคืน</td>
+                    <td>1 ตัว</td>
+                    <td>680.-</td>
+                  </tr>
+                  <tr style="background: rgba(0, 240, 255, 0.08); font-weight: bold;">
+                    <td colspan="4" style="text-align: right; color: var(--accent-cyan);">ยอดรวมงบประมาณค่าอุปกรณ์ต้นแบบทั้งหมด:</td>
+                    <td colspan="2" style="color: var(--accent-green); font-size: 15px;">3,015 บาท</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Right: Engineering Features & Innovation -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="spec-card">
+                <div class="section-title">💡 นวัตกรรมและจุดเด่นของระบบ</div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6; display: flex; flex-direction: column; gap: 10px;">
+                  <div>
+                    <strong style="color: #fff;">1. พัดลมบ่าไหล่เป่าหน้า/คอแบบแฮนด์ฟรี (Hands-Free Face Cooling):</strong>
+                    <p>ติดตั้งพัดลมไมโครเทอร์โบคู่ที่บ่าไหล่ ทำมุม 45° เล็งตรงสู่ใบหน้าและต้นคอ ช่วยระบายความร้อนบริเวณศีรษะและทางเดินหายใจทันที ผู้ใช้งานไม่ต้องพกหรือถือพัดลมมือถืออีกต่อไป ครบจบในเสื้อตัวเดียว</p>
+                  </div>
+                  <div>
+                    <strong style="color: #fff;">2. ระบบหล่อเย็นแบตเตอรี่เฉพาะทาง (Battery BTMS):</strong>
+                    <p>แบตเตอรี่ลิเธียมเมื่อจ่ายกระแสหนักกลางแดดจัดมีโอกาสร้อนสะสมสูง ระบบติดตั้งครีบอลูมิเนียม พัดลมระบายความร้อน และเซนเซอร์ NTC บน GPIO 39 คอยควบคุมอุณหภูมิไม่ให้เกิน 45°C เพื่อความปลอดภัยสูงสุดและยืดอายุการใช้งาน</p>
+                  </div>
+                  <div>
+                    <strong style="color: #fff;">3. สรีรวิทยาการระบายความร้อนสามโซน (3-Zone Thermal Comfort):</strong>
+                    <p>ผสานแรงดันลมพัดผ่านลำตัว เข้ากับแผ่นเย็นสัมผัสกระดูกสันหลัง (Peltier) และลมเป่าหน้า ทำให้ร่างกายรู้สึกเย็นสดชื่นทันใจ พร้อมอัลกอริทึม Dew-Point Watchdog ป้องกันหยดน้ำกลั่นตัว 100%</p>
+                  </div>
+                  <div>
+                    <strong style="color: #fff;">4. แถบสะท้อนแสง 3M Scotchlite & ความปลอดภัยกะกลางคืน:</strong>
+                    <p>เพิ่มทัศนวิสัยของผู้ปฏิบัติงานในที่มืด มองเห็นได้ไกลกว่า 300 เมตร พร้อมไฟสถานะฉุกเฉินและระบบตรวจจับการล้ม (Fall Detection)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="spec-card">
+                <div class="section-title">📏 ขนาดและน้ำหนักระบบ (Form Factor)</div>
+                <ul style="font-size: 13px; color: var(--text-muted); line-height: 1.8; padding-left: 18px;">
+                  <li><strong>น้ำหนักเสื้อเปล่าและแถบสะท้อนแสง:</strong> 350 กรัม</li>
+                  <li><strong>น้ำหนักชุดพัดลม 4 ตัว (เอว + บ่า):</strong> 340 กรัม</li>
+                  <li><strong>น้ำหนักชุด Peltier + ท่อความร้อน:</strong> 160 กรัม</li>
+                  <li><strong>น้ำหนักแบตเตอรี่ 3S2P + โมดูล BTMS:</strong> 360 กรัม</li>
+                  <li><strong>น้ำหนักรวมทั้งระบบขณะสวมใส่:</strong> ~1.2 กิโลกรัม (กระจายน้ำหนักสมดุล ไม่หน่วงไหล่)</li>
+                  <li><strong>อายุการใช้งานแบตเตอรี่:</strong> 3.2 ชม. (Turbo) / 5.2 ชม. (Auto) / 7.5+ ชม. (Eco)</li>
+                  <li><strong>ระดับการกันน้ำและฝุ่น:</strong> IP54 (ทนเหงื่อ ฝุ่นงานก่อสร้าง และละอองฝน)</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Core App Scripts -->
+  <script src="js/scene.js"></script>
+  <script src="js/wiring.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
